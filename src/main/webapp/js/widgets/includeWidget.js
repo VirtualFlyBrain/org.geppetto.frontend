@@ -61,6 +61,8 @@ define(function (require) {
         require("widgets/connectivity/config");
         //Buttonbar widget
         require("widgets/buttonBar/config");
+        //stackViewer widget
+        require("widgets/stackViewer/config");
 
         loadCss("geppetto/js/widgets/Widget.css");
     };
