@@ -83,32 +83,39 @@ define(function (require) {
         }
     });
 
-    // GEPPETTO.ArrayComponent = React.createClass({
-    //     render: function () {
-    //         var that = this;
-    //         return (
-    //             <div>
-    //                 {
-    //                     that.props.data.map(function (item, i, originalArray) {
-    //                         var displayText = item.split('.')[item.split('.').length - 1];
-    //                         var action = function (e) {
-    //                             e.preventDefault();
-    //                             var actionStr = that.props.metadata.actions;
-    //                             actionStr = actionStr.replace(/\$entity\$/gi, item);
-    //                             GEPPETTO.Console.executeCommand(actionStr);
-    //                         };
-    //
-    //                         var separator = (i < originalArray.length - 1) ? <span>, </span> : <span></span>;
-    //
-    //                         return (
-    //                             <span key={i}><a href='#' onClick={action}>{displayText}</a>{ separator }</span>
-    //                         );
-    //                     })
-    //                 }
-    //             </div>
-    //         )
-    //     }
-    // });
+    GEPPETTO.ArrayComponent = React.createClass({
+        render: function () {
+            var that = this;
+            return (
+                <div>
+                    {
+                        that.props.data.map(function (item, i, originalArray) {
+                            var displayText = item.split('.')[item.split('.').length - 1];
+                            var action = function (e) {
+                                e.preventDefault();
+                                var actionStr = that.props.metadata.actions;
+                                actionStr = actionStr.replace(/\$entity\$/gi, item);
+                                GEPPETTO.Console.executeCommand(actionStr);
+                            };
+
+                            var separator = (i < originalArray.length - 1) ? <span>, </span> : <span></span>;
+
+                            return (
+                                <span key={i}><a href='#' onClick={action}>{displayText}</a>{ separator }</span>
+                            );
+                        })
+                    }
+                </div>
+            )
+        }
+    });
+
+    GEPPETTO.HtmlComponent = React.createClass({
+      render: function () {
+        var that = this;
+        return this.props.data;
+      }
+    });
 
     GEPPETTO.ControlsComponent = React.createClass({
         colorPickerBtnId: '',
