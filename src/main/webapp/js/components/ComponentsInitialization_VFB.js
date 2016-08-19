@@ -82,6 +82,7 @@ define(function (require) {
             "columnName": "name",
             "order": 2,
             "locked": false,
+            "customComponent": GEPPETTO.HtmlComponent,
             "displayName": "Name",
             "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[1].getInitialValues()[0].value.html",
             "actions": "var displayText = '$entity$'.split('.')['$entity$'.split('.').length - 1]; G.addWidget(1).setData($entity$[displayText + '_meta']).setName(displayText).addCustomNodeHandler(customHandler,'click');"
@@ -89,6 +90,7 @@ define(function (require) {
             "columnName": "type",
             "order": 3,
             "locked": false,
+            "customComponent": GEPPETTO.HtmlComponent,
             "displayName": "Type",
             "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html"
         }, {
