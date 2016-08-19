@@ -113,9 +113,7 @@ define(function (require) {
     GEPPETTO.HtmlComponent = React.createClass({
       render: function () {
         var that = this;
-        return(
-          <div dangerouslySetInnerHtml={this.props.data} />
-        );
+        return this.props.data;
       }
     });
 
