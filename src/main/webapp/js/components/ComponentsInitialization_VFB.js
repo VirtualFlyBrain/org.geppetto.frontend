@@ -37,7 +37,7 @@ define(function (require) {
         link.rel = "stylesheet";
         link.href = "geppetto/js/components/VFB.css";
         document.getElementsByTagName("head")[0].appendChild(link);
-
+        
         /*ADD COMPONENTS*/
 
         //Logo initialization
@@ -69,7 +69,7 @@ define(function (require) {
         });
 
         /*CONFIGURE COMPONENTS*/
-
+        
         // CONTROLPANEL configuration
         // set column meta - which custom controls to use, source configuration for data, custom actions
         GEPPETTO.ControlPanel.setColumnMeta([{
@@ -90,7 +90,7 @@ define(function (require) {
             "locked": false,
             "customComponent": GEPPETTO.ArrayComponent,
             "displayName": "Type(s)",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html",
+            "source": "$entity$.getTypes().map(function (t) {return t.getPath()})",
             "actions": "var displayText = '$entity$'.split('.')['$entity$'.split('.').length - 1]; G.addWidget(1).setData($entity$[displayText + '_meta']).setName(displayText).addCustomNodeHandler(customHandler,'click');"
         }, {
             "columnName": "controls",
