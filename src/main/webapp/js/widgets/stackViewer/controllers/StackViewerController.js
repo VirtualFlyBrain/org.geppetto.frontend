@@ -51,7 +51,7 @@ define(function (require) {
         },
 
         /**
-         * Creates new button bar widget
+         * Creates new stack viewer widget
          */
         addStackViewerWidget: function () {
             //look for a name and id for the new widget
@@ -66,7 +66,7 @@ define(function (require) {
             GEPPETTO.WidgetsListener.subscribe(this, id);
 
             //updates help command options
-            GEPPETTO.Console.updateHelpCommand(vv, id, this.getFileComments("geppetto/js/widgets/template/stackViewer.js"));
+            GEPPETTO.Console.updateHelpCommand(vv, id, this.getFileComments("geppetto/js/widgets/StackViewer/stackViewer.js"));
 
             //update tags for autocompletion
             GEPPETTO.Console.updateTags(vv.getId(), vv);
