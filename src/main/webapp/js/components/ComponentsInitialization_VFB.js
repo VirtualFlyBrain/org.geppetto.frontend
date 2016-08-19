@@ -89,8 +89,9 @@ define(function (require) {
             "columnName": "type",
             "order": 3,
             "locked": false,
-            "displayName": "Type",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html"
+            "customComponent": GEPPETTO.ArrayComponent,
+            "displayName": "Type(s)",
+            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType(VFB_00017894.VFB_00017894_meta.getType(),'HTMLType')[2].getInitialValues().map(function (t) {return t.value.html})"
         }, {
             "columnName": "controls",
             "order": 4,
