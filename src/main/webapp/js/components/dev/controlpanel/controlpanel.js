@@ -48,8 +48,6 @@ define(function (require) {
     var Griddle = require('griddle');
     var GEPPETTO = require('geppetto');
     var colorpicker = require('./vendor/js/bootstrap-colorpicker.min');
-    var HtmlToReact = new require('html-to-react');
-    var htmlToReactParser = new HtmlToReact.Parser(React);
 
     $.widget.bridge('uitooltip', $.ui.tooltip);
 
@@ -112,7 +110,14 @@ define(function (require) {
         }
     });
 
-    GEPPETTO.HtmlComponent = htmlToReactParser.parse(this.props.data);
+    GEPPETTO.HtmlComponent = React.createClass({
+      render: function () {
+        var that = this;
+        return(
+          <div dangerouslySetInnerHtml={this.props.data} />
+        );
+      }
+    });
 
     GEPPETTO.ControlsComponent = React.createClass({
         colorPickerBtnId: '',
