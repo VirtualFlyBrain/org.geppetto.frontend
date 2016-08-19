@@ -608,8 +608,7 @@ define(function (require) {
                     </div>
                 );
             }
-        })
-        ;
+        });
 
     var prefix = "", _addEventListener, onwheel, support;
 
@@ -822,10 +821,7 @@ define(function (require) {
                 this.setSize(100, 300);
                 this.customHandlers = [];
 
-                
-
                 //in case you need some styling add it to the CSS $("#" + this.id).addClass("yourStyle");
-
             },
 
 
