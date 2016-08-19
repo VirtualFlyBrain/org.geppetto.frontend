@@ -53,7 +53,7 @@ define(function (require) {
         /**
          * Creates new button bar widget
          */
-        addstackViewerWidget: function () {
+        addStackViewerWidget: function () {
             //look for a name and id for the new widget
             var id = this.getAvailableWidgetId("stackViewer", this.widgets);
             var name = id;
