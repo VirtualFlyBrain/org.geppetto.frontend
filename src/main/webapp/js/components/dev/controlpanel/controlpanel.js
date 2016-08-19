@@ -312,16 +312,17 @@ define(function (require) {
             "locked": false,
             "visible": true,
             "displayName": "Name",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[1].getInitialValues()[0].value.html",
-            "actions": "G.addWidget(3).setData($entity$).setName('$entity$')"
+            "source": "$entity$.getPath()"
         },
         {
             "columnName": "type",
             "order": 3,
             "locked": false,
             "visible": true,
+            "customComponent": GEPPETTO.ArrayComponent,
             "displayName": "Type(s)",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html"
+            "source": "$entity$.getTypes().map(function (t) {return t.getPath()})",
+            "actions": "G.addWidget(3).setData($entity$).setName('$entity$')"
         },
         {
             "columnName": "controls",
@@ -431,15 +432,15 @@ define(function (require) {
 
         addData: function(instances){
         	if(instances!= undefined && instances.length>0){
-
+        		
 	            var columnMeta = this.props.columnMeta;
-
+	
 	            // filter new records with data filter
 	            var records = this.state.dataFilter(instances);
-
+	
 	            // grab existing input
 	            var gridInput = this.state.data;
-
+	
 	            for (var i = 0; i < records.length; i++) {
 	                var gridRecord = {};
                     var entityPath = records[i].getPath();
@@ -477,7 +478,7 @@ define(function (require) {
                         gridInput.push(gridRecord);
                     }
 	            }
-
+	
 	            // set state to refresh grid
 	            this.setState({data: gridInput});
         	}
@@ -571,7 +572,7 @@ define(function (require) {
             // hide control panel
             $("#controlpanel").show();
         },
-
+        
         close: function () {
             // hide any color picker that is still visible
             $(".colorpicker-visible").addClass('colorpicker-hidden').removeClass('colorpicker-visible');
@@ -585,14 +586,14 @@ define(function (require) {
             var pKey = 80;
 
             var that = this;
-
+            
             $("#controlpanel").click(function(e){
             	if (e.target==e.delegateTarget || e.target==$(".griddle-body").children(":first")[0]){
             		//we want this only to happen if we clicked on the div directly and not on anything therein contained
             		that.close();
             	}
             });
-
+            
             $(document).keydown(function (e) {
                 if (GEPPETTO.isKeyPressed("ctrl") && e.keyCode == pKey) {
                     // show control panel
