@@ -83,14 +83,15 @@ define(function (require) {
             "order": 2,
             "locked": false,
             "displayName": "Name",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[1].getInitialValues()[0].value.html",
-            "actions": "var displayText = '$entity$'.split('.')['$entity$'.split('.').length - 1]; G.addWidget(1).setData($entity$[displayText + '_meta']).setName(displayText).addCustomNodeHandler(customHandler,'click');"
+            "source": "$entity$.getName()"
         }, {
             "columnName": "type",
             "order": 3,
             "locked": false,
+            "customComponent": GEPPETTO.ArrayComponent,
             "displayName": "Type(s)",
-            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html"
+            "source": "GEPPETTO.ModelFactory.getAllVariablesOfMetaType($entity$.$entity$_meta.getType(),'HTMLType')[2].getInitialValues()[0].value.html",
+            "actions": "var displayText = '$entity$'.split('.')['$entity$'.split('.').length - 1]; G.addWidget(1).setData($entity$[displayText + '_meta']).setName(displayText).addCustomNodeHandler(customHandler,'click');"
         }, {
             "columnName": "controls",
             "order": 4,
