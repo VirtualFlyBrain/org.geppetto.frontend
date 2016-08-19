@@ -44,7 +44,7 @@ define(function (require) {
     TreeVisualiserControllerDAT = require('widgets/treevisualiser/treevisualiserdat/controllers/TreeVisualiserControllerDAT');
     VariableVisualizerController = require('widgets/variablevisualiser/controllers/VariableVisualiserController');
     ButtonBarController = require('widgets/buttonBar/controllers/ButtonBarController');
-    StackViewerController = require('widgets/buttonBar/controllers/StackViewerController');
+    StackViewerController = require('widgets/stackViewer/controllers/StackViewerController');
     //Use as template for new widgets
     //WIDGETNAMEController = require('widgets/buttonBar/controllers/WIDGETNAMEController');
 
