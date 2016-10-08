@@ -46,9 +46,6 @@ define(function (require) {
         GEPPETTO = require('geppetto');
 
     var Spotlight = React.createClass({
-        mixins: [
-            require('jsx!mixins/bootstrap/modal')
-        ],
 
         potentialSuggestions: {},
         suggestions: null,
@@ -57,6 +54,7 @@ define(function (require) {
         searchTimeOut : null,
         updateResults : false,
         initialised:false,
+        modifiable : true,
         
         close : function () {
             $("#spotlight").hide();
@@ -74,6 +72,11 @@ define(function (require) {
             var escape = 27;
 
             var that = this;
+
+            GEPPETTO.Spotlight = this;
+            
+            this.initTypeahead();
+			
 
             $("#spotlight").click(function(e){
             	if (e.target==e.delegateTarget){
@@ -131,7 +134,9 @@ define(function (require) {
                 }
             });
            
-
+            //fire key event on paste
+            $('#typeahead').on("paste", function(){$(this).trigger("keypress",{ keyCode: 13 });});
+            
             GEPPETTO.on(Events.Experiment_loaded, function () {
             	if(that.initialised){
             		that.initialised=false;
@@ -160,13 +165,7 @@ define(function (require) {
             	}
             });
 
-            this.dataSourceResults = new Bloodhound({
-            	datumTokenizer: Bloodhound.tokenizers.obj.whitespace('label'),
-            	queryTokenizer: Bloodhound.tokenizers.whitespace,
-            	identify: function (obj) {
-            		return obj.label;
-            	}
-            });
+            this.initDataSourceResults();
 
             Handlebars.registerHelper('geticonFromMetaType', function (metaType) {
                 if (metaType) {
@@ -187,16 +186,67 @@ define(function (require) {
 
             });
 
-
-            this.initTypeahead();
-
-            GEPPETTO.Spotlight = this;
-
-            this.addSuggestion(this.plotSample, GEPPETTO.Resources.PLAY_FLOW);
-
             if(GEPPETTO.ForegroundControls != undefined){
                 GEPPETTO.ForegroundControls.refresh();
             }
+            
+			GEPPETTO.on(Events.Project_loaded, function () {
+				//Hides or Shows tool bar depending on login user permissions
+				that.updateToolBarVisibilityState(that.checkHasWritePermission());
+			});
+
+			GEPPETTO.on(Events.Project_persisted, function () {
+				//Hides or Shows tool bar depending on login user permissions
+				that.updateToolBarVisibilityState(that.checkHasWritePermission());
+			});						
+			GEPPETTO.on(Events.Experiment_completed, function () {
+				that.updateToolBarVisibilityState(that.checkHasWritePermission(experimentId));
+			});
+			
+			GEPPETTO.on(Events.Experiment_running, function () {
+				//Hides or Shows tool bar depending on login user permissions
+				that.updateToolBarVisibilityState(that.checkHasWritePermission());
+			});
+			
+			GEPPETTO.on(Events.Experiment_failed, function () {
+				//Hides or Shows tool bar depending on login user permissions
+				that.updateToolBarVisibilityState(that.checkHasWritePermission());
+			});
+			
+			GEPPETTO.on(Events.Experiment_active, function () {
+				that.updateToolBarVisibilityState(that.checkHasWritePermission());
+			});
+            
+            GEPPETTO.on(Events.Instances_created, function(instances){
+        		that.addData(GEPPETTO.ModelFactory.newPathsIndexing);
+            });
+            
+			this.updateToolBarVisibilityState(this.checkHasWritePermission());
+            this.addData(GEPPETTO.ModelFactory.allPathsIndexing);
+
+
+
+        },
+        
+		/**
+		 * Returns true if user has permission to write and project is persisted
+		 */
+		checkHasWritePermission : function(experimentId){
+			var visible = true;
+			if(!GEPPETTO.UserController.hasPermission(GEPPETTO.Resources.WRITE_PROJECT) || !window.Project.persisted || !GEPPETTO.UserController.isLoggedIn()){
+				visible = false;
+			}
+			
+			if(window.Project!= undefined && window.Project.getActiveExperiment()!=null || undefined){
+				if(window.Project.getActiveExperiment().getId() == experimentId){
+					visible = false;
+				}
+
+				if(window.Project.getActiveExperiment().getStatus() == GEPPETTO.Resources.ExperimentStatus.COMPLETED){
+					visible = false;
+				}
+            }
+			return visible;
         },
 
         recordSample: {
@@ -224,7 +274,40 @@ define(function (require) {
             ],
             "icon": "fa-lightbulb-o"
         },
+        
+        focusButtonBar : function(){
+			$(".tt-menu").hide();
+			$(".spotlight-button").eq(0).focus();
+			$(".spotlight-input").eq(0).focus();
+        },
 
+        formatButtonActions : function(button, id, label){
+		    var actions, newActions;
+		    if(button.condition!=null || undefined){
+		    	actions = button[false].actions;
+		    	newActions = this.replaceActionHolders(actions, id,label);
+			    button[false].actions = newActions;
+			    
+			    actions = button[true].actions;
+		    	newActions = this.replaceActionHolders(actions, id,label);
+			    button[true].actions = newActions;
+		    }else{
+		    	actions = button.actions;
+		    	newActions = this.replaceActionHolders(actions, id,label);
+			    button.actions = newActions;
+		    }
+        },
+        
+        replaceActionHolders : function(actions, id, label){
+        	var newActions = JSON.parse(JSON.stringify(actions));
+    		for(var i=0; i < actions.length; i++) {
+    			newActions[i] = newActions[i].replace(/\$ID\$/g, id);
+    			newActions[i] = newActions[i].replace(/\$LABEL\$/gi,label);
+    		}
+    		
+    		return newActions;
+        },
+        
         confirmed: function (item) {
             //check suggestions
 
@@ -247,11 +330,31 @@ define(function (require) {
                     var found = this.dataSourceResults.get(item);
                     if (found.length == 1) {
                         suggestionFound = true;
-                        var actions = found[0].actions;
-                        actions.forEach(function (action) {
-                            GEPPETTO.Console.executeCommand(action)
-                        });
-                        $("#typeahead").typeahead('val', "");
+                        // one does not simply assign buttons without deep cloning them
+                        var buttons = JSON.parse(JSON.stringify(found[0].buttons));
+                        //data source item has buttons
+                        if(buttons!=null || undefined){
+                    		var button;
+                    		//format button actions to have proper values instead of placeholders
+                    		for (var prop in buttons) {
+                    			  if( buttons.hasOwnProperty( prop ) ) {
+                    			    button = buttons[prop];
+                    			    this.formatButtonActions(button,found[0]["id"], found[0]["label"]);
+                    			  } 
+                    		}
+                            var tbar = $('<div>').addClass('spotlight-toolbar');
+           					tbar.append(this.BootstrapMenuMaker.createButtonGroup("DataSource", buttons, null));
+           					$(".spotlight-toolbar").remove();
+           		        	$('#spotlight').append(tbar);
+           		        	this.focusButtonBar();
+                        }//data source is straight up execution of actions
+                        else{
+                        	var actions = found[0].actions;
+                        	actions.forEach(function (action) {
+                        		GEPPETTO.Console.executeCommand(action)
+                        	});
+                            $("#typeahead").typeahead('val', "");
+                        }
                     }
                 }
                 
@@ -265,10 +368,7 @@ define(function (require) {
                 			if ($(".spotlight-toolbar").length == 0) {
                 				this.loadToolbarFor(window._spotlightInstance);
                 			}
-
-                			$(".tt-menu").hide();
-                			$(".spotlight-button").eq(0).focus();
-                			$(".spotlight-input").eq(0).focus();
+                			this.focusButtonBar();
                 		}
                 	}catch (e){
                 		//TODO: Simulation Handler throws error when not finding an instance, should probably
@@ -349,7 +449,7 @@ define(function (require) {
         openToInstance: function (instance) {
             $("#spotlight").show();
             $("#typeahead").focus();
-            $(".typeahead").typeahead('val', instance.getInstancePath());
+            $("#typeahead").typeahead('val', instance.getInstancePath());
             $("#typeahead").trigger(jQuery.Event("keypress", {which: 13}));
         },
 
@@ -393,27 +493,46 @@ define(function (require) {
 
             $("#spotlight").show();
             $("#typeahead").focus();
-            $("#typeahead").typeahead('val', "!"); //this is required to make sure the query changes otherwise typeahead won't update
+            $("#typeahead").typeahead('val', "init"); //this is required to make sure the query changes otherwise typeahead won't update
             $("#typeahead").typeahead('val', "");
         },
 
+        initDataSourceResults: function(datumToken, queryToken, sorter){
+            this.dataSourceResults = new Bloodhound({
+                datumTokenizer: (datumToken != undefined) ? datumToken : Bloodhound.tokenizers.obj.whitespace('label'),
+                queryTokenizer: (queryToken != undefined) ? queryToken : Bloodhound.tokenizers.nonword,
+                identify: function (obj) {
+                    return obj.label;
+                },
+                sorter: sorter
+            });
+        },
+
         /**
-         * Requests external data sources. 
-         * 
+         * Requests external data sources.
+         *
          */
         addDataSource : function(sources){
-        	try {
-        		for (var key in sources) {
-        			  if (sources.hasOwnProperty(key)) {
-        			    var obj = sources[key];
-        			    var key = this.generateDataSourceKey(key, 0);
-        			    this.configuration.SpotlightBar.DataSources[key] = obj;
-        			  }
-        		}
-        	}
-        	catch (err) {
-        		throw ("Error parsing data sources " + err);
-        	}
+            try {
+                for (var key in sources) {
+                    if (sources.hasOwnProperty(key)) {
+                        var obj = sources[key];
+                        var key = this.generateDataSourceKey(key, 0);
+                        this.configuration.SpotlightBar.DataSources[key] = obj;
+
+                        if(obj.bloodhoundConfig) {
+                            this.initDataSourceResults(
+                                obj.bloodhoundConfig.datumTokenizer,
+                                obj.bloodhoundConfig.queryTokenizer,
+                                obj.bloodhoundConfig.sorter
+                            );
+                        }
+                    }
+                }
+            }
+            catch (err) {
+                throw ("Error parsing data sources " + err);
+            }
         },
         
         /**
@@ -479,7 +598,7 @@ define(function (require) {
 			//updated results
 			if(this.updateResults){
 				var value = $("#typeahead").val();
-				$("#typeahead").typeahead('val', "!"); //this is required to make sure the query changes otherwise typeahead won't update
+				$("#typeahead").typeahead('val', "init"); //this is required to make sure the query changes otherwise typeahead won't update
                 $("#typeahead").typeahead('val', value);
 			}
         },
@@ -536,18 +655,21 @@ define(function (require) {
         createDataSourceResult : function(data_source_name, response, formattedLabel, id){
         	var typeName = response.type;
 
+        	var buttons = 
+        		this.configuration.SpotlightBar.DataSources[data_source_name].type[typeName].buttons;
+
     		var obj = {};
     		obj["label"] = formattedLabel;
     		obj["id"] = id;
-    		//replace $ID$ with one returned from server for actions
-    		var actions = this.configuration.SpotlightBar.DataSources[data_source_name].type[typeName].actions;
-    		var newActions = actions.slice(0);
-    		for(var i=0; i < actions.length; i++) {
-    			 newActions[i] = newActions[i].replace(/\$ID\$/g, obj["id"]);
-    			 newActions[i] = newActions[i].replace(/\$LABEL\$/gi, obj["label"]);
-    		}
-    		obj["actions"] = newActions;
     		obj["icon"] = this.configuration.SpotlightBar.DataSources[data_source_name].type[typeName].icon;
+        	if(buttons!= null || undefined){
+        		obj["buttons"] = buttons;
+        	}else{
+        		//replace $ID$ with one returned from server for actions
+        		var actions = this.configuration.SpotlightBar.DataSources[data_source_name].type[typeName].actions;
+        		var newActions = this.replaceActionHolders(actions, obj["id"], obj["label"]);
+        		obj["actions"] = newActions;
+        	}
     		this.dataSourceResults.add(obj);
         },
         
@@ -607,28 +729,32 @@ define(function (require) {
             getCommand: function (action, instance, value) {
                 var label="";
                 var processed="";
-                if($.isArray(instance)){
-                    if (instance.length == 1) {
-                        label = instance[0].getInstancePath();
-                    }
-                    else {
-                        label = "Multiple instances of " + instance[0].getVariable().getId();
-                    }
-                    processed = action.split("$instances$").join("_spotlightInstance");
-                    processed = processed.split("$instance0$").join("_spotlightInstance[0]");
-                    processed = processed.split("$label$").join(label);
-                    processed = processed.split("$value$").join(value);
-                    processed = processed.split("$type$").join(instance[0].getType().getPath());
-                    processed = processed.split("$typeid$").join(instance[0].getType().getId());
-                    processed = processed.split("$variableid$").join(instance[0].getVariable().getId());
-                }
-                else{
-                    processed = action.split("$instances$").join(instance.getInstancePath());
-                    processed = processed.split("$label$").join(instance.getInstancePath());
-                    processed = processed.split("$value$").join(value);
-                    processed = processed.split("$type$").join(instance.getType().getPath());
-                    processed = processed.split("$typeid$").join(instance.getType().getId());
-                    processed = processed.split("$variableid$").join(instance.getVariable().getId());
+                if(instance!=null || undefined){
+                	if($.isArray(instance)){
+                		if (instance.length == 1) {
+                			label = instance[0].getInstancePath();
+                		}
+                		else {
+                			label = "Multiple instances of " + instance[0].getVariable().getId();
+                		}
+                		processed = action.split("$instances$").join("_spotlightInstance");
+                		processed = processed.split("$instance0$").join("_spotlightInstance[0]");
+                		processed = processed.split("$label$").join(label);
+                		processed = processed.split("$value$").join(value);
+                		processed = processed.split("$type$").join(instance[0].getType().getPath());
+                		processed = processed.split("$typeid$").join(instance[0].getType().getId());
+                		processed = processed.split("$variableid$").join(instance[0].getVariable().getId());
+                	}
+                	else{
+                		processed = action.split("$instances$").join(instance.getInstancePath());
+                		processed = processed.split("$label$").join(instance.getInstancePath());
+                		processed = processed.split("$value$").join(value);
+                		processed = processed.split("$type$").join(instance.getType().getPath());
+                		processed = processed.split("$typeid$").join(instance.getType().getId());
+                		processed = processed.split("$variableid$").join(instance.getVariable().getId());
+                	}
+                }else{
+                	processed = action;
                 }
 
                 return processed;
@@ -760,7 +886,7 @@ define(function (require) {
                 return bg;
             },
 
-            generateToolbar: function (buttonGroups, instance) {
+            generateToolbar: function (buttonGroups, instance, modifiable) {
                 var that = this;
                 var tbar = $('<div>').addClass('spotlight-toolbar');
                 var instanceToCheck = instance;
@@ -769,20 +895,41 @@ define(function (require) {
                     instanceToCheck = instance[0];
                 }
                 $.each(buttonGroups, function (groupName, groupDef) {
-                    if ((instanceToCheck.getCapabilities().indexOf(groupName) != -1) ||
-                        (instanceToCheck.getType().getMetaType() == groupName)) {
-                        tbar.append(that.createButtonGroup(groupName, groupDef, instance));
-                    }
+                	if ((instanceToCheck.getCapabilities().indexOf(groupName) != -1) ||
+                			(instanceToCheck.getType().getMetaType() == groupName)) {
+                		if(modifiable){
+                			tbar.append(that.createButtonGroup(groupName, groupDef, instance));
+                		}else{
+                			//don't load default toolbar for these two types if modifiable flag set to false,
+                			if(groupName!="StateVariableCapability" 
+                				&& groupName!="ParameterCapability"){
+                				tbar.append(that.createButtonGroup(groupName, groupDef, instance));
+                			}else{
+                				//don't show watch button if no permissions
+                				if(groupName == "StateVariableCapability"){
+                					//make copy since modifying original removes it through session
+                					var copiedObject = jQuery.extend({}, groupDef);
+                   					delete copiedObject["watch"];
+                   					tbar.append(that.createButtonGroup(groupName, copiedObject, instance));
+                				}
+                			}
+                		}
+                	}
                 });
 
                 return tbar;
             }
         },
 
+        //Used to determined if toolbar for paramter and stateve variable can be shown.
+        //Flag set to false if user don't have enough permissions to modify parameters/state variables
+        updateToolBarVisibilityState : function(visible){
+        	this.modifiable = visible;
+        },
+        
         loadToolbarFor: function (instance) {
-            $(".spotlight-toolbar").remove();
-            $('#spotlight').append(this.BootstrapMenuMaker.generateToolbar(this.configuration.SpotlightBar, instance));
-
+        	$(".spotlight-toolbar").remove();
+        	$('#spotlight').append(this.BootstrapMenuMaker.generateToolbar(this.configuration.SpotlightBar, instance, this.modifiable));
         },
 
         render: function () {
