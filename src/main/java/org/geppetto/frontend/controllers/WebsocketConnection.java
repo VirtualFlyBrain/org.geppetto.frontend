@@ -26,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.emf.common.util.BasicEList;
 import org.eclipse.emf.common.util.EList;
 import org.geppetto.core.common.GeppettoExecutionException;
+import org.geppetto.simulation.manager.GeppettoManager;
 import org.geppetto.core.datasources.QueryPagingContext;
 import org.geppetto.core.common.GeppettoInitializationException;
 import org.geppetto.core.manager.IGeppettoManager;
@@ -231,16 +232,34 @@ public class WebsocketConnection extends Endpoint implements MessageSenderListen
 		@Override
 		public void onMessage(String message) {
 			String msg = message.toString();
-			
-			Map<String, String> parameters;
-			long experimentId = -1;
-			long projectId = -1;
-			String instancePath = null;
 
 			// de-serialize JSON
 			GeppettoTransportMessage gmsg = new Gson().fromJson(msg, GeppettoTransportMessage.class);
 
 			String requestID = gmsg.requestID;
+
+			/*
+			 * Anything a handler did not anticipate (seen: a NullPointerException for a
+			 * project id this server does not know) used to escape here, and Tomcat
+			 * closed the socket. Answer the request with an error instead so only
+			 * that request fails.
+			 */
+			try
+			{
+				handle(gmsg, requestID);
+			}
+			catch(RuntimeException e)
+			{
+				connectionHandler.unexpectedError(requestID, e, "Unexpected error handling " + gmsg.type + " on connection " + connectionID);
+			}
+		}
+
+		private void handle(GeppettoTransportMessage gmsg, String requestID)
+		{
+			Map<String, String> parameters;
+			long experimentId = -1;
+			long projectId = -1;
+			String instancePath = null;
 
 			// switch on message type
 			// NOTE: each message handler knows how to interpret the GeppettoMessage data field
@@ -264,7 +283,18 @@ public class WebsocketConnection extends Endpoint implements MessageSenderListen
 					String lostConnectionID = parameters.get("connectionID");
 					projectId = Long.parseLong(parameters.get("projectId"));
 					try {
-						connectionHandler.setGeppettoManager(ConnectionsManager.getInstance().getHandler(lostConnectionID));
+						GeppettoManager resumed = ConnectionsManager.getInstance().getHandler(lostConnectionID);
+						/*
+						 * A retained manager is only useful if it still has the client's
+						 * project open. One registered from a connection that died before
+						 * its project finished loading has none, and resuming it left the
+						 * client sending requests for a project this server does not know.
+						 */
+						if(!ConnectionHandler.holdsProject(resumed, projectId))
+						{
+							throw new GeppettoExecutionException("The retained session does not have project " + projectId + " open.");
+						}
+						connectionHandler.setGeppettoManager(resumed);
 						logger.info("Resumed session for lost connection " + lostConnectionID + " on connection " + connectionID
 								+ " (project " + projectId + ")");
 					} catch (GeppettoExecutionException e) {

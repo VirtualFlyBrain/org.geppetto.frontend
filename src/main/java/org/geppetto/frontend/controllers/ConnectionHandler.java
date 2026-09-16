@@ -23,6 +23,7 @@ import org.geppetto.core.common.GeppettoErrorCodes;
 import org.geppetto.core.common.GeppettoExecutionException;
 import org.geppetto.core.common.GeppettoInitializationException;
 import org.geppetto.core.data.DataManagerHelper;
+import org.geppetto.core.data.DefaultGeppettoDataManager;
 import org.geppetto.core.data.IGeppettoDataManager;
 import org.geppetto.core.data.model.ExperimentStatus;
 import org.geppetto.core.data.model.IAspectConfiguration;
@@ -98,6 +99,51 @@ public class ConnectionHandler implements IGeppettoManagerCallbackListener
 		// one is instantiated and initialised
 		this.geppettoManager = new GeppettoManager(geppettoManager, geppettoManagerConfiguration);
 		this.geppettoManager.setSimulationListener(this);
+		ensureGuestUser();
+	}
+
+	/**
+	 * With the default (no-login) auth service the guest user is normally put on
+	 * the session's manager by Application when the page is served. A socket can
+	 * reach a container that never served that page - a client reconnecting
+	 * after a redeploy, or to the other replica - and its manager then has no
+	 * user at all, so loading the project to re-establish the session failed
+	 * with a NullPointerException that closed the socket. Give it the same guest
+	 * user the page load would have.
+	 */
+	private void ensureGuestUser()
+	{
+		try
+		{
+			if(this.geppettoManager.getUser() == null && AuthServiceCreator.getService().isDefault())
+			{
+				this.geppettoManager.setUser(DefaultGeppettoDataManager.getGuestUser());
+			}
+		}
+		catch(Exception e)
+		{
+			logger.warn("Could not set a guest user on a new connection's manager", e);
+		}
+	}
+
+	/**
+	 * Reports a failure the handler for a message did not anticipate, echoing the
+	 * requestID so the client can fail that request instead of losing the whole
+	 * connection.
+	 */
+	public void unexpectedError(String requestID, Exception exception, String errorMessage)
+	{
+		error(requestID, exception, errorMessage);
+	}
+
+	/**
+	 * @return whether the given manager has the given project open, i.e. whether
+	 *         a session resumed with it can serve requests for that project
+	 */
+	public static boolean holdsProject(GeppettoManager manager, long projectId)
+	{
+		IGeppettoProject project = DataManagerHelper.getDataManager().getGeppettoProjectById(projectId);
+		return project != null && manager.isProjectOpen(project);
 	}
 	
 	/**
