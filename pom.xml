@@ -42,6 +42,10 @@
 									<goal>npm</goal>
 								</goals>
 								<configuration>
+									<!-- Without arguments this goal runs a bare `npm install`, which fails on npm 6
+									     with "Cannot read property 'match' of undefined" and broke every -Pmaster
+									     build; the id says what it was always meant to do. -->
+									<arguments>config set registry https://registry.npmjs.org/</arguments>
 									<workingDirectory>src/main/webapp</workingDirectory>
 								</configuration>
 							</execution>
